@@ -1,0 +1,76 @@
+---
+title: "avocado and housing"
+author: "Zak"
+format: 
+  html:
+    self-contained: true
+    code-tools: true
+    toc: true
+    theme: darkly
+editor: source
+execute: 
+  error: true
+  echo: fenced
+  message: false
+  warning: false
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+install.packages("dplyr")
+install.packages("tidyverse")
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+avocados <- readr::read_csv("/Users/zakaria/Downloads/avocado-updated-2020.csv")
+
+avocados_clean <- avocados %>% rename(small_avocados = "4046", large_avocados = "4225", XL_avocados= "4770") %>%
+  mutate(geography_type = case_when(geography %in% c("West", "East", "Central", "SouthCentral", "Northeast", "Southeast") ~ "Region",
+      geography %in% c("Total U.S.") ~ "Country", geography %in% state.abb ~ "State", TRUE ~ "City")) 
+
+CA_regions <- c("Los Angeles", "San Diego", "Sacramento", "San Francisco")
+
+CA_data <- avocados_clean %>% filter(geography %in% CA_regions)
+
+avg_sales <- CA_data %>%
+  group_by(geography, type, small_avocados, large_avocados, XL_avocados) %>% 
+  summarize(avg_volume = mean(total_volume, na.rm = TRUE), .groups = "drop") %>%
+  ungroup() %>% group_by(geography, type) %>% mutate(proportion = avg_volume / sum(avg_volume))
+
+avg_sales_long <- avg_sales %>% pivot_longer(cols = c(large_avocados, small_avocados, XL_avocados),names_to = "size", values_to = "value")
+```
+
+You can add options to executable code like this
+
+```{r}
+library(tibble)
+
+set.seed(123) 
+
+house_prices <- tibble(geography = c("Los Angeles", "San Diego", "Sacramento", "San Francisco"),avg_house_price = runif(4, 500000, 1000000))
+
+joined_data <- left_join(CA_data, house_prices, by = "geography")
+
+analysis_data <- joined_data %>% group_by(geography) %>%summarise(
+  avg_avocado_price = mean(average_price, na.rm = TRUE),
+    total_volume = sum(total_volume, na.rm = TRUE)) %>%
+  left_join(house_prices, by = "geography")
+
+ggplot(analysis_data, aes(x = avg_avocado_price, y = avg_house_price, size = total_volume)) +geom_point(aes(color = geography),alpha = 1.8)  +
+  labs(title = "Why I'm Broke", 
+       x = "Average Avocado Price ($)",
+       y = "Average House Price ($)", 
+       caption = "Size of points represents total volume of avocados sold") + 
+  theme_minimal() +
+  scale_size_continuous(name = "Total Volume of Avocados Sold")
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
